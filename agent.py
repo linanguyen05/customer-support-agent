@@ -1,4 +1,4 @@
-# agent.py
+# agent.py 
 from mock_api import mock_order_status
 from bedrock_client import BedrockClient
 from config import SYSTEM_PROMPT
@@ -65,7 +65,9 @@ class Agent:
         return all(self.pending_order_info.values())
 
     def _build_user_message(self, user_input: str) -> str:
-        self._update_order_info(user_input)  # Accumulate fields
+        print(f"[DEBUG] Before update: {self.pending_order_info}")  # THÊM DÒNG NÀY
+        self._update_order_info(user_input) # Accumulate fields
+        print(f"[DEBUG] After update: {self.pending_order_info}") 
 
         docs = self.retriever.get_relevant_documents(user_input)
         context_text = "\n\n".join(
@@ -176,8 +178,33 @@ User question: {user_input}"""
         self._trim_history()
         return assistant_text
 
+    def respond_stream(self, user_input: str):
+        """Generator cho streaming responses - chỉ dùng cho câu hỏi knowledge (không order)"""
+        # Nếu là order query, fallback sang respond (non-stream)
+        order_keywords = ["order", "shipment", "tracking", "delivery status", "where is my package", "check my order"]
+        if any(kw in user_input.lower() for kw in order_keywords):
+            full_response = self.respond(user_input)
+            yield full_response
+            return
+
+        # Knowledge question: dùng streaming
+        self._clear_if_orphan_tool_use()
+        self._update_order_info(user_input)  # vẫn cập nhật phòng trường hợp user cung cấp thông tin lẻ tẻ
+        current_user_content = self._build_user_message(user_input)
+        api_messages = self.messages.copy()
+        api_messages.append({"role": "user", "content": [{"text": current_user_content}]})
+        
+        # Gọi Bedrock stream (không tool)
+        stream_gen = self.bedrock.converse_stream(messages=api_messages, tools=None, system_prompt=SYSTEM_PROMPT)
+        full_text = ""
+        for chunk in stream_gen:
+            full_text += chunk
+            yield chunk
+        # Lưu lịch sử
+        self.messages = api_messages + [{"role": "assistant", "content": [{"text": full_text}]}]
+        self._trim_history()
+
     def clear_history(self):
+        print("[DEBUG] clear_history called!")
         self.messages = []
         self.pending_order_info = {"full_name": None, "ssn_last4": None, "dob": None}
-
-    
