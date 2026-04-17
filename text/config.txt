@@ -1,0 +1,23 @@
+# config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Bedrock
+REGION = "us-east-1"
+EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
+LLM_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+
+# RAG
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+TOP_K = 3
+SIMILARITY_THRESHOLD = 0.6   
+
+# Paths
+PDF_PATH = r"L:\CK\Asm\project\data\Company-10k-18pages.pdf"
+FAISS_INDEX_FOLDER = "data"
+FAISS_INDEX_NAME = "faiss"
+FAISS_INDEX_PATH = os.path.join(FAISS_INDEX_FOLDER, f"{FAISS_INDEX_NAME}.faiss")
+DOCSTORE_PATH = os.path.join(FAISS_INDEX_FOLDER, f"{FAISS_INDEX_NAME}.pkl")

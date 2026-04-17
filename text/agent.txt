@@ -1,0 +1,100 @@
+# agent.py
+import json
+from mock_api import mock_order_status
+from bedrock_client import BedrockClient
+
+ORDER_STATUS_TOOL = {
+    "toolSpec": {
+        "name": "check_order_status",
+        "description": "Call this to get order status. Requires full_name, ssn_last4 (4 digits), dob (YYYY-MM-DD).",
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "full_name": {"type": "string"},
+                    "ssn_last4": {"type": "string"},
+                    "dob": {"type": "string"}
+                },
+                "required": ["full_name", "ssn_last4", "dob"]
+            }
+        }
+    }
+}
+
+SYSTEM_PROMPT = """You are a helpful customer support agent for Amazon.
+
+## RULES:
+- You handle TWO types of queries: Corporate questions (about Amazon's business) and Order status questions.
+- For CORPORATE questions: You MUST use the provided "Relevant information from company documents" section below. If facts aren't there, say "I don't know" exactly.
+- For ORDER status: You MUST call the 'check_order_status' tool. Do NOT guess info.
+- If the tool returns an error, explain it kindly to the user.
+- Always be professional and concise.
+"""
+
+class Agent:
+    def __init__(self, retriever):
+        self.retriever = retriever
+        self.bedrock = BedrockClient()
+        self.messages = [] 
+
+    def respond(self, user_input: str):
+        docs = self.retriever.get_relevant_documents(user_input)
+        context_text = ""
+        if docs:
+            context_text = "\n\n".join([f"[Source Page {doc.metadata.get('page')}]: {doc.page_content}" for doc in docs])
+        
+        if context_text:
+            current_user_content = f"Relevant information from company documents:\n{context_text}\n\nUser question: {user_input}"
+        else:
+            current_user_content = user_input
+
+        api_messages = self.messages.copy()
+        api_messages.append({"role": "user", "content": [{"text": current_user_content}]})
+
+        response = self.bedrock.converse(
+            messages=api_messages,
+            tools=[ORDER_STATUS_TOOL],
+            system_prompt=SYSTEM_PROMPT
+        )
+        
+        if response.get('stopReason') == 'tool_use':
+            self.messages.append({"role": "user", "content": [{"text": user_input}]})
+            output_msg = response.get('output', {}).get('message', {})
+            content_blocks = output_msg.get('content', [])
+            self.messages.append({"role": "assistant", "content": content_blocks})
+            
+            for block in content_blocks:
+                if 'toolUse' in block:
+                    tool_use = block['toolUse']
+                    tool_id = tool_use['toolUseId']
+                    tool_input = tool_use['input']
+                    result = mock_order_status(**tool_input)
+                    self.messages.append({
+                        "role": "user",
+                        "content": [{
+                            "toolResult": {
+                                "toolUseId": tool_id,
+                                "content": [{"json": result}]
+                            }
+                        }]
+                    })
+            
+            final_response = self.bedrock.converse(
+                messages=self.messages,
+                tools=[ORDER_STATUS_TOOL],
+                system_prompt=SYSTEM_PROMPT
+            )
+            
+            final_text = final_response.get('output', {}).get('message', {}).get('content', [{}])[0].get('text', "Tôi gặp lỗi khi xử lý kết quả đơn hàng.")
+            self.messages.append({"role": "assistant", "content": [{"text": final_text}]})
+            return final_text
+        else:
+            assistant_text = response.get('output', {}).get('message', {}).get('content', [{}])[0].get('text', "Xin lỗi, tôi không thể xử lý yêu cầu.")
+            self.messages.append({"role": "user", "content": [{"text": user_input}]})
+            self.messages.append({"role": "assistant", "content": [{"text": assistant_text}]})
+            if len(self.messages) > 20: 
+                self.messages = self.messages[-20:]
+            return assistant_text
+
+    def clear_history(self):
+        self.messages = []

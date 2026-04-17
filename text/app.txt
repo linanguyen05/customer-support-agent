@@ -1,0 +1,47 @@
+# app.py 
+import streamlit as st
+from retriever import PDFRetriever
+from agent import Agent
+
+st.set_page_config(page_title="Amazon Customer Agent", layout="wide")
+st.title("📦 Amazon E‑commerce Support Agent")
+st.markdown("Hỏi về thông tin từ báo cáo Amazon 10-K hoặc kiểm tra trạng thái đơn hàng.")
+
+@st.cache_resource
+def init_agent():
+    retriever = PDFRetriever()
+    return Agent(retriever)
+
+agent = init_agent()
+
+# Sync Agent history with Streamlit session state history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+else:
+    # Optional: Re-hydrate agent's internal messages if needed 
+    # (though Agent is a singleton in cache_resource for this user session)
+    pass
+
+# Nút clear conversation
+col1, col2 = st.columns([0.8, 0.2])
+with col2:
+    if st.button("🗑️ Clear history"):
+        agent.clear_history()
+        st.session_state.chat_history = []
+        st.rerun()
+
+# Hiển thị lịch sử
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+
+    with st.chat_message("assistant"):
+        with st.spinner("Đang suy nghĩ..."):
+            response = agent.respond(prompt)
+            st.markdown(response)
+    st.session_state.chat_history.append({"role": "assistant", "content": response})
