@@ -67,7 +67,7 @@ The document covers **Level 100** (core agent), **Level 200** (deployment & oper
 - Chunking: `RecursiveCharacterTextSplitter` with `chunk_size=1500`, `overlap=300`.
 - Embeddings: `amazon.titan-embed-text-v2:0` via Bedrock.
 - Vector store: FAISS (local index cached; rebuilt only if missing).
-- Retrieval: `similarity_search_with_score`, `top_k=3`, similarity threshold **0.6** (L2 distance).
+- Retrieval: `similarity_search_with_score`, `top_k=3`, similarity threshold disabled (all retrieved chunks are used).
 - Anti‑hallucination: If no context or below threshold, Claude responds: *“I don't have enough information…”* (enforced by system prompt).
 
 ### 3.2 Tool‑Based Workflow: Order Status Check
@@ -121,7 +121,7 @@ ORDER_STATUS_TOOL = {
 **Infrastructure as Code – Terraform** (files: `main.tf`, `variables.tf`, `user_data.sh.tpl`)
 
 Resources provisioned:
-- **EC2 instance** (`t2.micro`, Amazon Linux 2) with Elastic IP (`34.226.32.192`).
+- **EC2 instance** (`t2.micro`, Ubuntu 22.04 LTS) with Elastic IP (`34.226.32.192`).
 - **Security group**: allows inbound port 8501 (Streamlit) only from specific IP (demo).
 - **IAM role**: grants Bedrock and S3 read access.
 - **User data** script:
