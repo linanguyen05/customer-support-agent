@@ -225,7 +225,7 @@ User input → Rule‑based fast path → LLM classifier (if needed) → Intent
 
 ## 6. Demo Walkthrough (Video)
 
-The demo video (recorded on EC2 at `http://34.226.32.192:8501`) shows the following test cases:
+The demo video (recorded on EC2 at `http://44.209.191.96:8501/`) shows the following test cases:
 
 | # | User action | Expected behaviour | Result shown |
 |---|-------------|--------------------|---------------|
