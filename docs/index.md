@@ -23,33 +23,7 @@ The document covers **Level 100** (core agent), **Level 200** (deployment & oper
 
 ## 2. Architecture Overview
 
-```
-┌─────────────┐       EC2 (t2.micro) ─────────────────────────┐
-│   User      │ ──►  Streamlit UI (port 8501)                 │
-│  (Browser)  │       │                                        │
-└─────────────┘       ▼                                        │
-                ┌─────────────┐    ┌────────────────────┐     │
-                │   Agent     │───►│ Bedrock Client     │     │
-                │ (agent.py)  │    │ (Claude + Titan)   │     │
-                └──────┬──────┘    └────────────────────┘     │
-                       │                                       │
-                       ▼                                       │
-                ┌─────────────┐    ┌────────────────────┐     │
-                │  Retriever  │◄──►│ FAISS (local)      │     │
-                │(retriever.py)│   │ /tmp/faiss_data    │     │
-                └─────────────┘    └──────────▲─────────┘     │
-                                              │               │
-                                        ┌─────┴─────┐         │
-                                        │  S3       │         │
-                                        │(PDF + index)        │
-                                        └───────────┘         │
-                                                              │
-                        ┌────────────────────────────────────┘
-                        ▼
-                Mock API (mock_api.py)
-                - deterministic order status
-                - input validation
-```
+![Architecture Diagram](customer-support-agent-arch.gif)
 
 **Key flows:**
 - **Knowledge QA:** User question → Retriever (FAISS) → context → Claude → answer.
@@ -259,10 +233,11 @@ The demo video (recorded on EC2 at `http://34.226.32.192:8501`) shows the follow
 | 2 | “LA” | Agent acknowledges name, still asks SSN & DOB | ✅ Multi‑turn accumulation |
 | 3 | “1234” | Agent remembers name, asks DOB | ✅ Correct |
 | 4 | “LA,1234,2002-11-11” | Agent calls tool, returns order status “Pending” | ✅ Tool call successful |
-| 5 | “What are Amazon’s business segments?” | Agent retrieves from PDF → “North America, International, AWS” | ✅ RAG works, no hallucination |
-| 6 | “Who is the CEO of AWS?” | “Andrew R. Jassy” (exact from document) | ✅ Retrieval accurate |
-| 7 | “What is the return policy for electronics?” (out of document) | “I don’t have enough information…” | ✅ Hallucination prevented |
-| 8 | (Not in video but designed) Streaming test | Text appears word‑by‑word for knowledge questions | ⚠️ Implemented but disabled for demo stability |
+| 5 | “track my order with LA, 1234, 2002-11-11” | Agent extracts all three fields from the sentence, calls tool, returns “Pending – waiting for carrier pickup” | ✅ Natural language parsing works |
+| 6 | “What are Amazon’s business segments?” | Agent retrieves from PDF → “North America, International, AWS” | ✅ RAG works, no hallucination |
+| 7 | “Who is the CEO of AWS?” | “Andrew R. Jassy” (exact from document) | ✅ Retrieval accurate |
+| 8 | “What is the return policy for electronics?” (out of document) | “I don't have enough information…” | ✅ Hallucination prevented |
+| 9 | (Not in video but designed) Streaming test | Text appears word‑by‑word for knowledge questions | ⚠️ Implemented but disabled for demo stability |
 
 **Note:** The video does not include CI/CD or Terraform apply steps, but those are documented in §4.
 
@@ -286,7 +261,7 @@ The demo video (recorded on EC2 at `http://34.226.32.192:8501`) shows the follow
 This solution successfully implements a production‑oriented conversational agent on AWS, meeting all Level 100 and Level 200 requirements. The design for Level 300 demonstrates a clear path to scalability, observability, and improved retrieval quality. The assignment showcases a balanced mix of **implementation** (working RAG, tool use, deployment) and **architectural thinking** (data models, classification, preprocessing).
 
 **Repository:** [[GitHub] ](https://github.com/linanguyen05/customer-support-agent) 
-**Demo video:** [link provided]
+**Demo video:** [[Demo recording] ](https://drive.google.com/drive/folders/1Yp8g6N4b1REWtiXDXQILDBAi_z3yKgiZ?usp=sharing)
 
 ---
 
