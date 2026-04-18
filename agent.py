@@ -1,4 +1,11 @@
-# agent.py 
+# agent.py
+import logging
+logging.basicConfig(
+    filename='/home/ubuntu/agent_debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(message)s',
+    force=True
+) 
 from mock_api import mock_order_status
 from bedrock_client import BedrockClient
 from config import SYSTEM_PROMPT
@@ -67,6 +74,7 @@ class Agent:
     def _build_user_message(self, user_input: str) -> str:
         print(f"[DEBUG] Before update: {self.pending_order_info}")  # THÊM DÒNG NÀY
         self._update_order_info(user_input) # Accumulate fields
+        logging.debug(f"After update: {self.pending_order_info}")
         print(f"[DEBUG] After update: {self.pending_order_info}") 
 
         docs = self.retriever.get_relevant_documents(user_input)
@@ -105,10 +113,11 @@ User question: {user_input}"""
             self.clear_history()
     
     def respond(self, user_input: str):
-        self._clear_if_orphan_tool_use()
+        #self._clear_if_orphan_tool_use()
 
         # Accumulate order info
         self._update_order_info(user_input)
+        logging.debug(f"RESPOND after update: {self.pending_order_info}")
 
         current_user_content = self._build_user_message(user_input)
 
@@ -188,7 +197,7 @@ User question: {user_input}"""
             return
 
         # Knowledge question: dùng streaming
-        self._clear_if_orphan_tool_use()
+        #self._clear_if_orphan_tool_use()
         self._update_order_info(user_input)  # vẫn cập nhật phòng trường hợp user cung cấp thông tin lẻ tẻ
         current_user_content = self._build_user_message(user_input)
         api_messages = self.messages.copy()

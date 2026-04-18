@@ -144,9 +144,10 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
         with st.spinner("Đang suy nghĩ..."):
             response_placeholder = st.empty()
             full_response = ""
-            for chunk in agent.respond_stream(prompt):
-                full_response += chunk
-                response_placeholder.markdown(full_response + "▌")
+#            for chunk in agent.respond_stream(prompt):
+#                full_response += chunk
+#                response_placeholder.markdown(full_response + "▌")
+            full_response = agent.respond(prompt)
             response_placeholder.markdown(full_response)
     st.session_state.chat_history.append({"role": "assistant", "content": full_response})
     _save_conversation(st.session_state.chat_history)

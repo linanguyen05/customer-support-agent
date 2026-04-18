@@ -87,8 +87,14 @@
 import os
 import boto3
 import pdfplumber
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
+try:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+try:
+    from langchain.schema import Document
+except ImportError:
+    from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import BedrockEmbeddings
 from config import (
