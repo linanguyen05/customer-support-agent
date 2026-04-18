@@ -42,7 +42,7 @@ class Agent:
             name_match = re.search(r"(?:tên|name|my name is|full name)[^\w]*([A-Za-zÀ-ỹ\s]+?)(?:,|\.|ssn|dob|birth|$)", user_input, re.IGNORECASE)
             if name_match:
                 name_part = name_match.group(1).strip()
-                if len(name_part) > 2 and not any(c.isdigit() for c in name_part):
+                if name_part and not any(c.isdigit() for c in name_part):
                     self.pending_order_info["full_name"] = name_part
 
         # SSN last 4
