@@ -42,15 +42,6 @@ class Agent:
     def _update_order_info(self, user_input: str):
         """Light parsing to accumulate order fields from user message"""
         lowered = user_input.lower()
-        
-        # Full name (simple but improved)
-        if "name" in lowered or "tên" in lowered or "my name is" in lowered:
-            import re
-            name_match = re.search(r"(?:tên|name|my name is|full name)[^\w]*([A-Za-zÀ-ỹ\s]+?)(?:,|\.|ssn|dob|birth|$)", user_input, re.IGNORECASE)
-            if name_match:
-                name_part = name_match.group(1).strip()
-                if name_part and not any(c.isdigit() for c in name_part):
-                    self.pending_order_info["full_name"] = name_part
 
         # SSN last 4
         import re
@@ -62,11 +53,55 @@ class Agent:
         dob_match = re.search(r'(\d{4}-\d{2}-\d{2})', user_input)
         if dob_match:
             self.pending_order_info["dob"] = dob_match.group(1)
+        
+        # Full name (simple but improved)
+        name_match = re.search(r"(?:tên|name|my name is|full name)[^\w]*([A-Za-zÀ-ỹ\s]+?)(?:,|\.|ssn|dob|birth|$)", user_input, re.IGNORECASE)
+        
+        if name_match:
+            name_part = name_match.group(1).strip()
+            if name_part and not any(c.isdigit() for c in name_part):
+                self.pending_order_info["full_name"] = name_part
+                # Nếu đã lấy được tên bằng từ khóa thì thoát, không cần xử lý thêm
+                # Lưu ý: vẫn để các bước khác (masking) bên dưới
+        else:
+            # Cách 2: Nếu chưa có tên, thử suy luận từ cấu trúc "Tên,SSN,DOB"
+            # Chỉ áp dụng nếu đã có SSN và DOB hợp lệ
+            if self.pending_order_info["ssn_last4"] and self.pending_order_info["dob"]:
+                # Thử tách theo dấu phẩy hoặc khoảng trắng
+                # Ví dụ: "LA,1234,2002-11-11" -> ["LA", "1234", "2002-11-11"]
+                parts = re.split(r'[,\s]+', user_input.strip())
+                # Lọc bỏ các phần tử rỗng
+                parts = [p for p in parts if p]
+                if len(parts) >= 3:
+                    # Phần đầu tiên có thể là tên (không phải số, không phải định dạng date)
+                    first = parts[0]
+                    # Kiểm tra first không phải toàn số và không khớp định dạng YYYY-MM-DD
+                    if not first.isdigit() and not re.match(r'\d{4}-\d{2}-\d{2}', first):
+                        # Kiểm tra thêm: nếu phần thứ hai đúng là 4 số và phần thứ ba đúng dạng date
+                        if re.fullmatch(r'\d{4}', parts[1]) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', parts[2]):
+                            self.pending_order_info["full_name"] = first
+                        # Trường hợp tên có thể có khoảng trắng? Ví dụ "John Doe,1234,2002-11-11"
+                        # Nếu parts dài hơn 3, ghép các phần đầu cho đến trước SSN
+                        else:
+                            # Tìm vị trí của phần tử khớp SSN (4 số) và DOB
+                            ssn_idx = -1
+                            dob_idx = -1
+                            for i, p in enumerate(parts):
+                                if re.fullmatch(r'\d{4}', p) and ssn_idx == -1:
+                                    ssn_idx = i
+                                if re.fullmatch(r'\d{4}-\d{2}-\d{2}', p) and dob_idx == -1:
+                                    dob_idx = i
+                            if ssn_idx > 0 and dob_idx > ssn_idx:
+                                # Ghép các phần từ 0 đến ssn_idx-1 làm tên
+                                name_candidate = " ".join(parts[:ssn_idx])
+                                if name_candidate and not any(c.isdigit() for c in name_candidate):
+                                    self.pending_order_info["full_name"] = name_candidate
 
         # Reject masked values
         for key in self.pending_order_info:
             if self.pending_order_info[key] and "****" in str(self.pending_order_info[key]):
                 self.pending_order_info[key] = None
+            
 
     def _has_complete_order_info(self):
         return all(self.pending_order_info.values())
